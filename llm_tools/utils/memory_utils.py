@@ -166,3 +166,124 @@ def calculate_training_memory(
             gradients_memory,
         ),
     }
+
+
+
+@st.cache_data
+def get_qkv_projection_ops(
+    batch_size,
+    sequence_length,
+    hidden_size,
+    num_hidden_layers,
+):
+    try:
+        return (
+            3 * num_hidden_layers * 
+            batch_size * sequence_length *
+            hidden_size * hidden_size
+        )
+    except:
+        return 0 
+
+@st.cache_data
+def get_attention_ops(
+    batch_size,
+    sequence_length,
+    hidden_size,
+    num_hidden_layers,
+    num_attention_heads,
+):
+    try:
+        head_dim = hidden_size//num_attention_heads 
+        per_layer_per_head_ops  = (
+            sequence_length * head_dim * sequence_length +
+            sequence_length * sequence_length * head_dim
+        )
+
+        return (
+            num_hidden_layers *
+            batch_size * 
+            num_attention_heads * 
+            per_layer_per_head_ops 
+        )
+    except:
+        return 0 
+        
+
+@st.cache_data
+def get_att_output_projection_ops( 
+    batch_size,
+    sequence_length,
+    hidden_size,
+    num_hidden_layers,
+):
+    try:
+        return (
+            num_hidden_layers * 
+            batch_size * sequence_length *
+            hidden_size * hidden_size
+        )
+    except:
+        return 0 
+
+@st.cache_data
+def get_ffn_ops(
+    batch_size,
+    sequence_length,
+    hidden_size,
+    num_hidden_layers,
+    intermediate_size, 
+):
+    try:
+        return (
+            3 * num_hidden_layers *
+            batch_size * sequence_length *
+            hidden_size * intermediate_size
+        )
+    except:
+        return 0 
+
+
+@st.cache_data
+def calculate_inference_ops(
+    batch_size,
+    sequence_length,
+    hidden_size,
+    num_hidden_layers,
+    num_attention_heads,
+    intermediate_size, 
+):
+    qkv_ops = get_qkv_projection_ops(
+        batch_size,
+        sequence_length,
+        hidden_size,
+        num_hidden_layers,
+    )
+
+    attention_ops = get_attention_ops(
+        batch_size,
+        sequence_length,
+        hidden_size,
+        num_hidden_layers,
+        num_attention_heads,
+    )
+
+    output_ops = get_att_output_projection_ops(
+        batch_size,
+        sequence_length,
+        hidden_size,
+        num_hidden_layers,
+    )
+
+    ffn_ops = get_ffn_ops(
+        batch_size,
+        sequence_length,
+        hidden_size,
+        num_hidden_layers,
+        intermediate_size, 
+    )
+
+    return (qkv_ops + attention_ops + output_ops + ffn_ops)/ (2**40)
+    
+
+

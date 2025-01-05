@@ -1,4 +1,5 @@
 import streamlit as st
+
 from llm_tools.config.memory_config import (
     DATA_TYPES,
     PARAMETERS,
@@ -7,6 +8,7 @@ from llm_tools.config.memory_config import (
 )
 from llm_tools.utils.memory_utils import (
     calculate_inference_memory,
+    calculate_inference_ops,
     calculate_training_memory,
 )
 
@@ -95,6 +97,14 @@ num_attention_heads = st.sidebar.number_input(
     key="num_attention_heads",
     help="Number of attention heads in the model (given by the model card).",
 )
+intermediate_size = st.sidebar.number_input(
+    "Intermediate Size",
+    min_value=0,
+    step=1,
+    value=None,
+    key="intermediate_size",
+    help="Intermediate Size of FFN (given by the model card).",
+)
 
 
 # ----------------- Main Screen UI ----------------- #
@@ -119,11 +129,20 @@ inference_memory = calculate_inference_memory(
     num_attention_heads,
 )
 
+inference_ops = calculate_inference_ops(
+    batch_size,
+    sequence_length,
+    hidden_size,
+    num_hidden_layers,
+    num_attention_heads,
+    intermediate_size, 
+)
+
 inference.write(f"**Total Inference Memory**: {inference_memory['inference_memory']}")
 inference.write(f"- **Model Weights**: {inference_memory['model_weights']}")
 inference.write(f"- **KV Cache**: {inference_memory['kv_cache']}")
-inference.write(f"- **Activation Memory**: {inference_memory['activation_memory']}")
-
+# inference.write(f"- **Activation Memory**: {inference_memory['activation_memory']}")
+inference.write(f"- **Compute Ops**: {inference_ops} TOPS")
 
 # Training Memory
 training_memory = calculate_training_memory(

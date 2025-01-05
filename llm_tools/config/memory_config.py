@@ -29,6 +29,7 @@ PARAMETERS = {
     "num_hidden_layers": "num_hidden_layers",
     "num_attention_heads": "num_attention_heads",
     "num_key_value_heads": "num_key_value_heads",
+    "intermediate_size":"intermediate_size",
 }
 
 
