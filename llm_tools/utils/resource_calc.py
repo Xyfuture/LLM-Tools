@@ -19,8 +19,10 @@ class ModelConfig:
             return False # use MHA not GQA
         elif self.num_attention_heads != self.num_key_value_heads:
             return True # use GQA
-        
-
+    
+    @property
+    def per_head_size(self):
+        return self.hidden_size // self.num_attention_heads
 
 @dataclass
 class DataTypeConfig:
@@ -90,16 +92,16 @@ class MemoryCalc:
         # W_qkv -- MHA and GQA use different W_kv
         if not model_config.use_gqa:
             # MHA mode 
-            qkv_size = 3* (self.inference_config.model_config.hidden_size ** 2)
+            qkv_proj_size = 3* (self.inference_config.model_config.hidden_size ** 2)
         else:
-            q_size = model_config.hidden_size ** 2
+            q_proj_size = model_config.hidden_size ** 2
             per_head_size = model_config.hidden_size // model_config.num_attention_heads
-            kv_size = 2 * model_config.hidden_size * per_head_size * model_config.num_key_value_heads
-            qkv_size = q_size + kv_size 
+            kv_proj_size = 2 * model_config.hidden_size * per_head_size * model_config.num_key_value_heads
+            qkv_proj_size = q_proj_size + kv_proj_size 
 
 
         # W_o
-        o_size = model_config.hidden_size ** 2 
+        o_proj_size = model_config.hidden_size ** 2 
 
         # FFN 
         if model_config.model_type == 'llama' :
@@ -110,7 +112,7 @@ class MemoryCalc:
         else:
             assert False
         
-        layer_total_size = qkv_size + o_size + ffn_size
+        layer_total_size = qkv_proj_size + o_proj_size + ffn_size
         
         return layer_total_size
 
@@ -124,10 +126,10 @@ class MemoryCalc:
         per_head_size = model_config.hidden_size / model_config.num_attention_heads
         if model_config.use_gqa:
             # GQA mode 
-            kv_size = 2 * per_head_size * model_config.num_key_value_heads * total_length
+            kv_size = 2 * sequence_config.batch_size * per_head_size * model_config.num_key_value_heads * total_length
         else:
             # MHA mode 
-            kv_size = 2 * per_head_size * model_config.num_attention_heads * total_length
+            kv_size = 2 * sequence_config.batch_size * per_head_size * model_config.num_attention_heads * total_length
 
         return kv_size 
 
@@ -139,32 +141,71 @@ class ComputeCalc:
         self.inference_config:InferenceConfig = InferenceConfig()
 
     def get_total_ops(self):
+        # MAC ops 
         pass 
 
-    def get_layer_qkv_proj_ops(self):
+    def get_layer_qkv_proj_ops(self)->dict[str,int]:
+        # prefill and decoding -- different stages 
+
         model_config,data_type_config,sequence_config  = self.inference_config.model_config,self.inference_config.data_type_config,self.inference_config.sequence_config
         
+
+        # decoding 
         if model_config.use_gqa:
             # GQA mode
-            pass 
+            q_proj_decoding_ops = sequence_config.batch_size * model_config.hidden_size * model_config.hidden_size
+            kv_proj_decoding_ops = 2 * sequence_config.batch_size * model_config.hidden_size * (model_config.per_head_size * model_config.num_key_value_heads)
+
+            qkv_proj_decoding_ops = q_proj_decoding_ops + kv_proj_decoding_ops
+             
         else:
             # MHA mode 
-            pass 
+            qkv_proj_decoding_ops = 3 * sequence_config.batch_size * model_config.hidden_size * model_config.hidden_size
+        
+        qkv_proj_prefill_ops =  qkv_proj_decoding_ops * sequence_config.prefill_length
+
+        return  {'decoding':qkv_proj_decoding_ops,'prefill':qkv_proj_prefill_ops}
 
 
-    def get_layer_attention_ops(self):
+    def get_layer_attention_ops(self)->dict[str,int]:
+        # prefill and decoding -- different stages 
+
         model_config,data_type_config,sequence_config  = self.inference_config.model_config,self.inference_config.data_type_config,self.inference_config.sequence_config
 
+        # prefill
+        # MHA and GQA actually the same ops, GQA only brings memory usage gain 
+        q_mul_k_prefill_ops = sequence_config.batch_size * (sequence_config.prefill_length * model_config.per_head_size * sequence_config.prefill_length * model_config.num_attention_heads)
+        score_mul_v_prefill_ops = sequence_config.batch_size * (sequence_config.prefill_length * sequence_config.prefill_length * model_config.per_head_size * model_config.num_attention_heads)
+        o_proj_prefill_ops = sequence_config.batch_size * sequence_config.prefill_length * model_config.hidden_size * model_config.hidden_size
 
-    def get_layer_ffn_ops(self):
+        attention_prefill_ops = q_mul_k_prefill_ops + score_mul_v_prefill_ops + o_proj_prefill_ops 
+
+        # decoding 
+        q_mul_k_decoding_ops = sequence_config.batch_size * (1 * model_config.per_head_size * sequence_config.total_length * model_config.num_attention_heads)
+        score_mul_v_decoding_ops = sequence_config.batch_size * (1 * sequence_config.total_length * model_config.per_head_size * model_config.num_attention_heads)
+        o_proj_decoding_ops = sequence_config.batch_size * 1 * model_config.hidden_size * model_config.hidden_size
+
+        attention_decoding_ops = q_mul_k_decoding_ops + score_mul_v_decoding_ops + o_proj_decoding_ops
+
+        return {'decoding':attention_decoding_ops , 'prefill':attention_prefill_ops}
+
+
+
+
+    def get_layer_ffn_ops(self)->dict[str,int]:
         model_config,data_type_config,sequence_config  = self.inference_config.model_config,self.inference_config.data_type_config,self.inference_config.sequence_config
 
         if model_config.model_type == 'llama':
-            pass 
+            # three MLP matrix
+            ffn_prefill_ops = sequence_config.batch_size * 3 * sequence_config.prefill_length * model_config.hidden_size * model_config.hidden_size
+            ffn_decoding_ops = sequence_config.batch_size * 3 * 1 * model_config.hidden_size * model_config.hidden_size 
         elif model_config.model_type =='gpt':
-            pass 
+            ffn_prefill_ops = sequence_config.batch_size * 3 * sequence_config.prefill_length * model_config.hidden_size * model_config.hidden_size
+            ffn_decoding_ops = sequence_config.batch_size * 3 * 1 * model_config.hidden_size * model_config.hidden_size
         else:
-            pass 
+            assert False
+
+        return {'decoding':ffn_decoding_ops, 'prefill':ffn_prefill_ops}
 
 
 
