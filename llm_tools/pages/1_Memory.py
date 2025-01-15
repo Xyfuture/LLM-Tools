@@ -167,3 +167,7 @@ training1.write(f"- **Gradients Memory**: {training_memory['gradients_memory']}"
 # ----------------- Error Handling ----------------- #
 if None in st.session_state.values():
     st.warning("Some information is missing.")
+
+
+
+

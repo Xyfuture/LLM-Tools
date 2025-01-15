@@ -10,6 +10,8 @@ if st.button("Memory Requirements Calculator"):
     st.switch_page("pages/1_Memory.py")
 elif st.button("Costs Calculator"):
     st.switch_page("pages/2_Costs.py")
+elif st.button("Resource Requirements Calculator"):
+    st.switch_page("pages/3_Resource.py")
 
 st.write(
     "This project is open-source and actively welcomes contributions from developers and enthusiasts worldwide. Feel free to explore, use, and improve it!"
