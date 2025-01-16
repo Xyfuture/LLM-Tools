@@ -1,8 +1,8 @@
 import streamlit as st
-from llm_tools.config.memory_config import load_predefined_models
 from llm_tools.utils.resource_calc import InferenceConfig,ModelConfig
 from llm_tools.utils.resource_calc import ComputeCalc,MemoryCalc
 from llm_tools.utils.resource_calc import concat_unit,convert_unit_from_bytes,convert_unit_from_ops
+from llm_tools.utils.resource_calc import get_predefined_models,load_predefined_model_config
 
 st.set_page_config(page_title= 'LLM Resource Requirements')
 st.title("LLM Resource Requirements")
@@ -13,7 +13,7 @@ st.title("LLM Resource Requirements")
 # ----------------- Sidebar UI ----------------- #
 
 # available pre-defined models
-MODELS = load_predefined_models()
+MODELS = get_predefined_models()
 DATA_TYPES = {"fp16","fp8","fp4","int16","int8","int4"}
 
 
@@ -23,7 +23,11 @@ inference_config = InferenceConfig()
 
 # initial value 
 def initial_value_from_json():
-    pass 
+    lm_config = load_predefined_model_config(st.session_state['model'])
+    inference_config.lm_config = lm_config
+
+    initial_session_state()
+
 
 def initial_session_state():
     # lm_config 
@@ -36,43 +40,30 @@ def initial_session_state():
     for key,value in inference_config.data_type_config.model_dump().items():
         st.session_state[f'data_type_config-{key}'] = value 
 
-initial_session_state()
-
-print('info')
-for key,value in st.session_state.items():
-    print(key)
-print('end')
-
 
 # update value 
 def update_model_config():
-    print('update model config')
     for key,value in st.session_state.items():
-        if '-' not in key:
+        if '-' not in key or value is None:
             continue
         config_name, entry = key.split('-',1)
-        print( config_name, entry)
         if config_name == 'model_config':
             inference_config.lm_config.__dict__.update({entry:value})
     
 
 def update_data_type_config():
-    print('update data type config')
     for key,value in st.session_state.items():
-        if '-' not in key:
+        if '-' not in key or value is None:
             continue
         config_name, entry = key.split('-',1)
-        print( config_name, entry)
         if config_name == 'data_type_config':
             inference_config.data_type_config.__dict__.update({entry:value})
 
 def update_sequence_config():
-    print('update sequecen config')
     for key,value in st.session_state.items():
-        if '-' not in key:
+        if '-' not in key or value is None :
             continue
         config_name, entry = key.split('-',1)
-        print( config_name, entry)
         if config_name == 'sequence_config':
             inference_config.sequence_config.__dict__.update({entry:value})
 
@@ -80,21 +71,10 @@ def update_sequence_config():
 
 # Model Selection
 model = st.sidebar.selectbox(
-    "Model", list(MODELS.keys()), index=None, on_change=initial_value_from_json, key="model"
+    "Model", list(MODELS), index=None, on_change=initial_value_from_json, key="model"
 )
 
 # Parameters
-model_size = st.sidebar.number_input(
-    "Number of parameters (in billions)",
-    min_value=0,
-    step=1,
-    value=None,
-    key="model_config-model_size",
-    help="Number of parameters in the model in billions",
-    on_change=update_model_config,
-)
-
-
 weight_data_type = st.sidebar.selectbox(
     "Weight Data Type",
     DATA_TYPES,
@@ -164,7 +144,7 @@ num_hidden_layers = st.sidebar.number_input(
     min_value=0,
     step=1,
     value=None,
-    key="model_config-hidden_layers",
+    key="model_config-num_hidden_layers",
     help="Number of layers in the model (given by the model card).",
     on_change=update_model_config,
 )
@@ -196,6 +176,10 @@ intermediate_size = st.sidebar.number_input(
     on_change=update_model_config,
 )
 
+
+update_model_config()
+update_data_type_config()
+update_sequence_config()
 
 
 memory_calc = MemoryCalc(inference_config)

@@ -2,6 +2,7 @@ from dataclasses import dataclass,fields
 from typing import Literal
 import json 
 from pydantic import BaseModel
+import os 
 
 
 def get_bytes(dtype:Literal["fp16","fp8","fp4","int16","int8","int4"]) -> float :
@@ -33,17 +34,27 @@ def concat_unit(data:tuple[float,str])->str:
     return f"{data[0]:.2f}{data[1]}"
 
 
-class ModelConfig(BaseModel):
-    class Config:
-        allow_mutation = True
+def get_predefined_models()->list:
+    models = []
+    for model_file in os.listdir(os.path.join("llm_tools", "model_cards")):
+        if model_file.endswith(".json"):
+            models.append(model_file[:-5])
+    return models
+
+
     
+
+
+
+
+class ModelConfig(BaseModel):
     hidden_size: int = 4096
     intermediate_size: int = 11008
     num_hidden_layers: int = 32 
     num_attention_heads: int = 32
     num_key_value_heads: int = 0
     vocab_size: int = 0
-    model_type:Literal['llama','gpt'] = 'llama' # use different ffn design
+    model_type:Literal['llama','gpt','mixtral','phi','mistral','phi3','qwen2'] = 'llama' # use different ffn design
 
         
 
@@ -62,18 +73,12 @@ class ModelConfig(BaseModel):
 
 
 class DataTypeConfig(BaseModel):
-    class Config:
-        allow_mutation = True
-        
     weight_dtype: Literal["fp16","fp8","fp4","int16","int8","int4"] = 'int8'
     activation_dtype: Literal["fp16","fp8","fp4","int16","int8","int4"] = 'int8'
     kv_cache_dtype: Literal["fp16","fp8","fp4","int16","int8","int4"] = 'int8'
 
 
 class SequenceConfig(BaseModel):
-    class Config:
-        allow_mutation = True
-
     batch_size: int = 32
     prefill_length: int = 1024
     decoding_length: int = 1024
@@ -85,11 +90,20 @@ class SequenceConfig(BaseModel):
 
 
 class InferenceConfig(BaseModel):
-    class Config:
-        allow_mutation = True
     data_type_config:DataTypeConfig = DataTypeConfig()
     lm_config:ModelConfig = ModelConfig()
     sequence_config:SequenceConfig = SequenceConfig()
+
+
+
+def load_predefined_model_config(model_name)->InferenceConfig:
+    with open(os.path.join("llm_tools", "models", f"{model_name}.json"), "r") as f:
+        json_dict = json.load(f)
+        lm_config = ModelConfig(**json_dict)
+
+    return lm_config 
+
+
 
 
 class MemoryCalc:
@@ -260,10 +274,3 @@ class ResourceCalc:
     
 
 
-
-
-
-
-
-
-    
