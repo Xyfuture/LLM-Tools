@@ -18,6 +18,7 @@ DATA_TYPES = {"fp16","fp8","fp4","int16","int8","int4"}
 
 
 
+
 inference_config = InferenceConfig()
 
 
@@ -81,7 +82,7 @@ weight_data_type = st.sidebar.selectbox(
     index=None,
     key="data_type_config-weight_dtype",
     help="Data type used (int 8 and int 4 are for quantization)",
-    on_change=update_data_type_config,
+    # on_change=update_data_type_config,
 )
 activation_data_type = st.sidebar.selectbox(
     "Activation Data Type",
@@ -89,7 +90,7 @@ activation_data_type = st.sidebar.selectbox(
     index=None,
     key="data_type_config-activation_dtype",
     help="Data type used (int 8 and int 4 are for quantization)",
-    on_change=update_data_type_config,
+    # on_change=update_data_type_config,
 )
 kv_cache_data_type = st.sidebar.selectbox(
     "KV Cache Data Type",
@@ -97,7 +98,7 @@ kv_cache_data_type = st.sidebar.selectbox(
     index=None,
     key="data_type_config-kv_cache_dtype",
     help="Data type used (int 8 and int 4 are for quantization)",
-    on_change=update_data_type_config,
+    # on_change=update_data_type_config,
 )
 
 
@@ -107,8 +108,7 @@ batch_size = st.sidebar.number_input(
     step=1,
     value=1,
     key="sequence_config-batch_size",
-    on_change=update_sequence_config,
-
+    # on_change=update_sequence_config,
 )
 prefill_length = st.sidebar.number_input(
     "Prefill Length",
@@ -117,7 +117,7 @@ prefill_length = st.sidebar.number_input(
     value=2048,
     key="sequence_config-prefill_length",
     help="Number of tokens in the input sequence.",
-    on_change=update_sequence_config,
+    # on_change=update_sequence_config,
 )
 decoding_length = st.sidebar.number_input(
     "Decoding Length",
@@ -126,7 +126,7 @@ decoding_length = st.sidebar.number_input(
     value=2048,
     key='sequence_config-decoding_length',
     help="Number of tokens in the output sequence.",
-    on_change=update_sequence_config,
+    # on_change=update_sequence_config,
 )
 
 
@@ -137,7 +137,7 @@ hidden_size = st.sidebar.number_input(
     value=None,
     key="model_config-hidden_size",
     help="Size of the hidden layer (given by the model card).",
-    on_change=update_model_config,
+    # on_change=update_model_config,
 )
 num_hidden_layers = st.sidebar.number_input(
     "Number of Layers",
@@ -146,7 +146,7 @@ num_hidden_layers = st.sidebar.number_input(
     value=None,
     key="model_config-num_hidden_layers",
     help="Number of layers in the model (given by the model card).",
-    on_change=update_model_config,
+    # on_change=update_model_config,
 )
 num_attention_heads = st.sidebar.number_input(
     "Number of Attention Heads",
@@ -155,7 +155,7 @@ num_attention_heads = st.sidebar.number_input(
     value=None,
     key="model_config-num_attention_heads",
     help="Number of attention heads in the model (given by the model card).",
-    on_change=update_model_config,
+    # on_change=update_model_config,
 )
 num_key_value_heads = st.sidebar.number_input(
     "Number of Key Value Heads",
@@ -164,7 +164,7 @@ num_key_value_heads = st.sidebar.number_input(
     value=None,
     key="model_config-num_key_value_heads",
     help="Number of key value heads in the model (given by the model card).",
-    on_change=update_model_config,
+    # on_change=update_model_config,
 )
 intermediate_size = st.sidebar.number_input(
     "Intermediate Size",
@@ -173,7 +173,7 @@ intermediate_size = st.sidebar.number_input(
     value=None,
     key="model_config-intermediate_size",
     help="Intermediate Size of FFN (given by the model card).",
-    on_change=update_model_config,
+    # on_change=update_model_config,
 )
 
 

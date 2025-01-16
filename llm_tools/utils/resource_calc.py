@@ -97,7 +97,7 @@ class InferenceConfig(BaseModel):
 
 
 def load_predefined_model_config(model_name)->InferenceConfig:
-    with open(os.path.join("llm_tools", "models", f"{model_name}.json"), "r") as f:
+    with open(os.path.join("llm_tools", "model_cards", f"{model_name}.json"), "r") as f:
         json_dict = json.load(f)
         lm_config = ModelConfig(**json_dict)
 
