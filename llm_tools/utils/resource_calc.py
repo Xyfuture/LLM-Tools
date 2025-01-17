@@ -24,10 +24,10 @@ def convert_unit_from_bytes(data_bytes:int)->tuple[float,str]:
 
 
 def convert_unit_from_ops(mac_ops:int)-> tuple[float,str]:
-    if mac_ops < 2e30:
-        return mac_ops / 2e30 , 'GOPs'
+    if mac_ops < 2**40:
+        return mac_ops / (2**30) , 'GOPs'
     else:
-        return mac_ops/ 2e40 , 'TOPs'
+        return mac_ops/ (2**40) , 'TOPs'
     
 
 def concat_unit(data:tuple[float,str])->str:
@@ -35,8 +35,13 @@ def concat_unit(data:tuple[float,str])->str:
 
 
 def get_predefined_models()->list:
+    current_file_path = os.path.abspath(__file__)
+    # 获取当前文件所在的目录
+    current_directory = os.path.dirname(current_file_path)
+    parent_directory = os.path.dirname(current_directory)
+
     models = []
-    for model_file in os.listdir(os.path.join("llm_tools", "model_cards")):
+    for model_file in os.listdir(os.path.join(parent_directory, "model_cards")):
         if model_file.endswith(".json"):
             models.append(model_file[:-5])
     return models
@@ -79,7 +84,7 @@ class DataTypeConfig(BaseModel):
 
 
 class SequenceConfig(BaseModel):
-    batch_size: int = 32
+    batch_size: int = 1
     prefill_length: int = 1024
     decoding_length: int = 1024
     
@@ -97,7 +102,11 @@ class InferenceConfig(BaseModel):
 
 
 def load_predefined_model_config(model_name)->InferenceConfig:
-    with open(os.path.join("llm_tools", "model_cards", f"{model_name}.json"), "r") as f:
+    current_file_path = os.path.abspath(__file__)
+    # 获取当前文件所在的目录
+    current_directory = os.path.dirname(current_file_path)
+    parent_directory = os.path.dirname(current_directory)
+    with open(os.path.join(parent_directory, "model_cards", f"{model_name}.json"), "r") as f:
         json_dict = json.load(f)
         lm_config = ModelConfig(**json_dict)
 
@@ -255,11 +264,11 @@ class ComputeCalc:
 
         if lm_config.model_type == 'llama':
             # three MLP matrix
-            ffn_prefill_ops = sequence_config.batch_size * 3 * sequence_config.prefill_length * lm_config.hidden_size * lm_config.hidden_size
-            ffn_decoding_ops = sequence_config.batch_size * 3 * 1 * lm_config.hidden_size * lm_config.hidden_size 
+            ffn_prefill_ops = sequence_config.batch_size * 3 * sequence_config.prefill_length * lm_config.hidden_size * lm_config.intermediate_size
+            ffn_decoding_ops = sequence_config.batch_size * 3 * 1 * lm_config.hidden_size * lm_config.intermediate_size 
         elif lm_config.model_type =='gpt':
-            ffn_prefill_ops = sequence_config.batch_size * 3 * sequence_config.prefill_length * lm_config.hidden_size * lm_config.hidden_size
-            ffn_decoding_ops = sequence_config.batch_size * 3 * 1 * lm_config.hidden_size * lm_config.hidden_size
+            ffn_prefill_ops = sequence_config.batch_size * 3 * sequence_config.prefill_length * lm_config.hidden_size * lm_config.intermediate_size
+            ffn_decoding_ops = sequence_config.batch_size * 3 * 1 * lm_config.hidden_size * lm_config.intermediate_size
         else:
             assert False
 

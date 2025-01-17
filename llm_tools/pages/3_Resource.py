@@ -197,8 +197,8 @@ st.write(f"- **KV Cache**: {concat_unit(convert_unit_from_bytes(memory_map['kv_c
 st.markdown("---")
 
 # Compute Usage
-st.write(f"**Total Prefill Ops**: {compute_map['prefill']}")
-st.write(f"**Total Decoding Ops**: {compute_map['decoding']}")
+st.write(f"**Total Prefill Ops**: {concat_unit(convert_unit_from_ops(compute_map['prefill']))}")
+st.write(f"**Total Decoding Ops**: {concat_unit(convert_unit_from_ops(compute_map['decoding']))}")
 
 
 
