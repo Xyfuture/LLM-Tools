@@ -126,11 +126,15 @@ class MemoryCalc:
 
         weight_layer_size = self.get_layer_weight_size()
         kv_cache_layer_size = self.get_layer_kv_cache_size()
+        vocab_misc_size = self.get_vocab_misc_size()
+
 
         weight_memory = weight_layer_size * lm_config.num_hidden_layers *  get_bytes(data_type_config.weight_dtype)
         kv_cache_memory = kv_cache_layer_size * lm_config.num_hidden_layers * get_bytes(data_type_config.kv_cache_dtype)
-        
-        total_memory = weight_memory + kv_cache_memory
+        vocab_misc_memory = vocab_misc_size * get_bytes(data_type_config.weight_dtype)
+        weight_memory += vocab_misc_memory
+
+        total_memory = weight_memory + kv_cache_memory  
         
         return {'total':total_memory, 'weight':weight_memory, 'kv_cache':kv_cache_memory}
 
@@ -187,7 +191,14 @@ class MemoryCalc:
 
         return kv_size 
 
-        
+    def get_vocab_misc_size(self):
+        # lm_head and tokenize
+        lm_config,data_type_config,sequence_config  = self.inference_config.lm_config,self.inference_config.data_type_config,self.inference_config.sequence_config
+        lm_head_size = lm_config.hidden_size * lm_config.vocab_size
+        tokenizer_size = lm_config.vocab_size * lm_config.hidden_size
+
+        return lm_head_size + tokenizer_size
+
  
 
 class ComputeCalc:
