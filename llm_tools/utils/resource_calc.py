@@ -167,6 +167,8 @@ class MemoryCalc:
             ffn_size = 3 * lm_config.hidden_size * lm_config.intermediate_size 
         elif lm_config.model_type == 'gpt':
             ffn_size = 2 * lm_config.hidden_size * lm_config.intermediate_size
+        elif lm_config.model_type == 'qwen2':
+            ffn_size = 3 * lm_config.hidden_size * lm_config.intermediate_size
         else:
             assert False
         
@@ -280,6 +282,9 @@ class ComputeCalc:
         elif lm_config.model_type =='gpt':
             ffn_prefill_ops = sequence_config.batch_size * 3 * sequence_config.prefill_length * lm_config.hidden_size * lm_config.intermediate_size
             ffn_decoding_ops = sequence_config.batch_size * 3 * 1 * lm_config.hidden_size * lm_config.intermediate_size
+        elif lm_config.model_type == 'qwen2':
+            ffn_prefill_ops = sequence_config.batch_size * 3 * sequence_config.prefill_length * lm_config.hidden_size * lm_config.intermediate_size
+            ffn_decoding_ops = sequence_config.batch_size * 3 * 1 * lm_config.hidden_size * lm_config.intermediate_size 
         else:
             assert False
 
