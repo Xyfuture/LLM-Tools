@@ -191,7 +191,7 @@ compute_map = compute_calc.get_total_ops()
 
 # Memory Usage
 st.write(f"**Total Inference Memory**: {concat_unit(convert_unit_from_bytes(memory_map['total']))}")
-st.write(f"- **Model Weights**: {concat_unit(convert_unit_from_bytes(memory_map['weight']))}")
+st.write(f"- **Model Weights**: {concat_unit(convert_unit_from_bytes(memory_map['weight']))}") 
 st.write(f"- **KV Cache**: {concat_unit(convert_unit_from_bytes(memory_map['kv_cache']))}")
 
 st.markdown("---")
@@ -200,7 +200,51 @@ st.markdown("---")
 st.write(f"**Total Prefill Ops**: {concat_unit(convert_unit_from_ops(compute_map['prefill']))}")
 st.write(f"**Total Decoding Ops**: {concat_unit(convert_unit_from_ops(compute_map['decoding']))}")
 
+# Communicate Usage
+st.markdown("---")
+st.write(f"**--**: {1}")
 
+
+
+"""
+暂时的需求
+
+Model Summary 
+    Hidden Dim
+    Number of Layers
+    Intermediate Size 
+    Attention Heads
+    KV Heads 
+
+
+Memory Usage
+    Model Weights
+    Model KV Cache
+    Model KV Cache Per Token 
+
+    Layer Weights
+    Layer KV Cache 
+    Layer KV Cache Per token 
+
+Compute Usage
+    Model Prefill Ops
+    Model Decoding Ops 
+    
+    Model Decoding MLP Ops
+    Model Decoding Attention Ops
+
+Transfer Usage
+    # 简单起见,先做 layer的 model level的之后看看需要什么补上 
+    
+    Layer Prefill Projection Linear Size / Memory  # 普通的情况
+    Layer Prefill FFN Linear Size / Memory  # FFN 中间的情况
+
+    Layer Decoding Projection Linear Size / Memory
+    Layer Decoding FFN Linear Size / Memory 
+
+
+
+"""
 
 
 # ----------------- Error Handling ----------------- #

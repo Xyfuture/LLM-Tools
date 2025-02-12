@@ -292,6 +292,17 @@ class ComputeCalc:
 
 
 
+class TransferCalc:
+    def __init__(self,inference_config:InferenceConfig):
+        self.inference_config = inference_config
+
+    def get_layer_transfer_size_breakdown(self):
+        # output linear + ffn + RMSNorm 
+        pass 
+        
+        
+
+
 class ResourceCalc:
     def __init__(self):
         pass
