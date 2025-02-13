@@ -185,24 +185,73 @@ update_sequence_config()
 memory_calc = MemoryCalc(inference_config)
 compute_calc = ComputeCalc(inference_config)
 
-memory_map = memory_calc.get_total_memory()
-compute_map = compute_calc.get_total_ops()
+memory_info = memory_calc.get_all_info()
+compute_info = compute_calc.get_all_info()
 
+
+# # Memory Usage
+# st.write(f"**Total Inference Memory**: {concat_unit(convert_unit_from_bytes(memory_map['total']))}")
+# st.write(f"- **Model Weights**: {concat_unit(convert_unit_from_bytes(memory_map['weight']))}") 
+# st.write(f"- **KV Cache**: {concat_unit(convert_unit_from_bytes(memory_map['kv_cache']))}")
+
+# st.markdown("---")
+
+# # Compute Usage
+# st.write(f"**Total Prefill Ops**: {concat_unit(convert_unit_from_ops(compute_map['prefill']))}")
+# st.write(f"**Total Decoding Ops**: {concat_unit(convert_unit_from_ops(compute_map['decoding']))}")
+
+# # Communicate Usage
+# st.markdown("---")
+# st.write(f"**--**: {1}")
+
+
+# Memory 指绝对的大小, Size 指元素的个数 
+
+convert_memory = lambda x:concat_unit(convert_unit_from_bytes(x))
+convert_ops = lambda x:concat_unit(convert_unit_from_ops(x))
 
 # Memory Usage
-st.write(f"**Total Inference Memory**: {concat_unit(convert_unit_from_bytes(memory_map['total']))}")
-st.write(f"- **Model Weights**: {concat_unit(convert_unit_from_bytes(memory_map['weight']))}") 
-st.write(f"- **KV Cache**: {concat_unit(convert_unit_from_bytes(memory_map['kv_cache']))}")
+st.write(f"**Memory Usage**:")
+st.write(f"- **Model Total Memory**:{convert_memory(memory_info['model_total_memory'])}")
+st.write(f"- **Model Weights Memory**:{convert_memory(memory_info['model_weights_memory'])}")
+st.write(f"- **Model KV Cache Memory**:{convert_memory(memory_info['model_kv_cache_memory'])}")
+st.write(f"- **Model KV Cache Per Token Memory**:{convert_memory(memory_info['model_kv_cache_per_token_memory'])}")
+st.write(f" ")
+st.write(f"- **Layer Wegihts Memory**:{convert_memory(memory_info['layer_weights_memory'])}")
+st.write(f"- **Layer KV Cache Memory**:{convert_memory(memory_info['layer_kv_cache_memory'])}")
+st.write(f"- **Layer KV Cache Per Token Memory**:{convert_memory(memory_info['layer_kv_cache_per_token_memory'])}")
 
-st.markdown("---")
 
-# Compute Usage
-st.write(f"**Total Prefill Ops**: {concat_unit(convert_unit_from_ops(compute_map['prefill']))}")
-st.write(f"**Total Decoding Ops**: {concat_unit(convert_unit_from_ops(compute_map['decoding']))}")
+# Compute Usage 
+st.write(f"**Compute Usage**:")
+st.write(f"- **Model Prefill Ops**:{convert_ops(compute_info['model_prefill_ops'])}")
+st.write(f"- **Model Decoding Ops**:{convert_ops(compute_info['model_decoding_ops'])}")
+st.write(f"  ")
+st.write(f"- **Model Decoding MLP Ops**:{convert_ops(compute_info['model_decoding_mlp_ops'])}")
+st.write(f"- **Model Decoding Attention Ops**:{convert_ops(compute_info['model_decoding_attention_ops'])}")
+st.write(f"  ")
+st.write(f"- **Layer Decoding MLP Ops**:{convert_ops(compute_info['layer_decoding_mlp_ops'])}")
+st.write(f"- **Layer Decoding Attention Ops**:{convert_ops(compute_info['layer_decoding_attention_ops'])}")
 
-# Communicate Usage
-st.markdown("---")
-st.write(f"**--**: {1}")
+
+# # Transfer Usage
+# st.write(f"**Transfer Usage**:")
+# st.write(f"- **Layer Prefill Projection Linear Size**:")
+# st.write(f"- **Layer Prefill FNN Linear Size**:")
+# st.write(f"- **Layer Decoding Projection Linear Size**:")
+# st.write(f"- **Layer Decoding FFN Linear Size**:")
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

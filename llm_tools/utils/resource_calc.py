@@ -121,26 +121,47 @@ class MemoryCalc:
         self.inference_config:InferenceConfig = inference_config
         # print(self.inference_config)
 
-    def get_total_memory(self)->dict[str,float]:
+    def get_all_info(self)->dict[str,float]:
+        layer_weights_info = self.get_layer_weight_info()
+        layer_kv_cache_info = self.get_layer_kv_cache_info()
+
+        model_info = self.get_model_info()
+        
+        info_dict = {**layer_weights_info,**layer_kv_cache_info,**model_info}
+
+        return info_dict
+
+
+    def get_model_info(self)->dict[str,float]:
         lm_config,data_type_config,sequence_config  = self.inference_config.lm_config,self.inference_config.data_type_config,self.inference_config.sequence_config
 
-        weight_layer_size = self.get_layer_weight_size()
-        kv_cache_layer_size = self.get_layer_kv_cache_size()
-        vocab_misc_size = self.get_vocab_misc_size()
+        weight_layer_size = self.get_layer_weight_info()['layer_weights_size']
+        kv_cache_layer_size = self.get_layer_kv_cache_info()['layer_kv_cache_size']
+        kv_cache_per_token_layer_size = self.get_layer_kv_cache_info()['layer_kv_cache_per_token_size']
+        vocab_misc_size = self.get_vocab_misc_info()['vocab_misc_size']
 
+        weight_size = weight_layer_size * lm_config.num_hidden_layers
+        kv_cache_size = kv_cache_layer_size * lm_config.num_hidden_layers
+        kv_cache_per_token_size = kv_cache_per_token_layer_size * lm_config.num_hidden_layers
 
-        weight_memory = weight_layer_size * lm_config.num_hidden_layers *  get_bytes(data_type_config.weight_dtype)
-        kv_cache_memory = kv_cache_layer_size * lm_config.num_hidden_layers * get_bytes(data_type_config.kv_cache_dtype)
+        weight_memory = weight_size *  get_bytes(data_type_config.weight_dtype)
+        kv_cache_memory = kv_cache_size * get_bytes(data_type_config.kv_cache_dtype)
+        kv_cache_per_token_memory = kv_cache_per_token_size * get_bytes(data_type_config.kv_cache_dtype)
         vocab_misc_memory = vocab_misc_size * get_bytes(data_type_config.weight_dtype)
+        
         weight_memory += vocab_misc_memory
 
         total_memory = weight_memory + kv_cache_memory  
         
-        return {'total':total_memory, 'weight':weight_memory, 'kv_cache':kv_cache_memory}
+        return {'model_total_memory':total_memory,
+                'model_weights_memory':weight_memory,
+                'model_kv_cache_memory':kv_cache_memory,
+                'model_kv_cache_per_token_memory': kv_cache_per_token_memory,
+                }
 
 
     
-    def get_layer_weight_size(self):
+    def get_layer_weight_info(self):
         # calc one layer weight size -- element number not bytes
         # W_qkv + W_o + W_ffn 
 
@@ -172,12 +193,13 @@ class MemoryCalc:
         else:
             assert False
         
-        layer_total_size = qkv_proj_size + o_proj_size + ffn_size
-        
-        return layer_total_size
+        layer_weights_size = qkv_proj_size + o_proj_size + ffn_size
+        layer_weights_memory = layer_weights_size * get_bytes(data_type_config.weight_dtype)
+
+        return {'layer_weights_size':layer_weights_size,'layer_weights_memory':layer_weights_memory}
 
 
-    def get_layer_kv_cache_size(self):
+    def get_layer_kv_cache_info(self):
         # prefill + decoding -> total size -- element number not bytes
 
         lm_config,data_type_config,sequence_config  = self.inference_config.lm_config,self.inference_config.data_type_config,self.inference_config.sequence_config
@@ -186,20 +208,34 @@ class MemoryCalc:
         per_head_size = lm_config.hidden_size / lm_config.num_attention_heads
         if lm_config.use_gqa:
             # GQA mode 
-            kv_size = 2 * sequence_config.batch_size * per_head_size * lm_config.num_key_value_heads * total_length
+            layer_kv_cache_per_token_size = 2 * sequence_config.batch_size * per_head_size * lm_config.num_key_value_heads
+            layer_kv_cache_size = layer_kv_cache_per_token_size * total_length 
         else:
             # MHA mode 
-            kv_size = 2 * sequence_config.batch_size * per_head_size * lm_config.num_attention_heads * total_length
+            layer_kv_cache_per_token_size = 2 * sequence_config.batch_size * per_head_size * lm_config.num_attention_heads
+            layer_kv_cache_size = layer_kv_cache_per_token_size* total_length
+        
+        layer_kv_cache_memory = layer_kv_cache_size * get_bytes(data_type_config.kv_cache_dtype) 
+        layer_kv_cache_per_token_memory = layer_kv_cache_per_token_size * get_bytes(data_type_config.kv_cache_dtype)
 
-        return kv_size 
 
-    def get_vocab_misc_size(self):
+        return {'layer_kv_cache_size':layer_kv_cache_size,
+                'layer_kv_cache_memory':layer_kv_cache_memory,
+                'layer_kv_cache_per_token_size':layer_kv_cache_per_token_size,
+                'layer_kv_cache_per_token_memory':layer_kv_cache_per_token_memory}
+    
+
+    def get_vocab_misc_info(self):
         # lm_head and tokenize
         lm_config,data_type_config,sequence_config  = self.inference_config.lm_config,self.inference_config.data_type_config,self.inference_config.sequence_config
         lm_head_size = lm_config.hidden_size * lm_config.vocab_size
         tokenizer_size = lm_config.vocab_size * lm_config.hidden_size
 
-        return lm_head_size + tokenizer_size
+
+        vocab_misc_size = lm_head_size + tokenizer_size
+        vocab_misc_memory = vocab_misc_size * get_bytes(data_type_config.weight_dtype)
+
+        return {'vocab_misc_size':vocab_misc_size,'vocab_misc_memory':vocab_misc_memory}
 
  
 
@@ -208,20 +244,35 @@ class ComputeCalc:
         self.inference_config:InferenceConfig = inference_config
         # print(self.inference_config)
 
+    def get_all_info(self)->dict[str,int]:
+        # info = dict().update(self.get_model_ops()).update(self.get_layer_attention_ops()).update(self.get_layer_mlp_ops())
+        info = {**(self.get_model_ops()),**(self.get_layer_attention_ops()),**(self.get_layer_mlp_ops())}
+        return info 
+        
 
-    def get_total_ops(self)->dict[str,int]:
+    def get_model_ops(self)->dict[str,int]:
+        # TODO 词表相关的运算要加进来
         # MAC ops 
         laeyr_qkv_proj_ops_map = self.get_layer_qkv_proj_ops()
         layer_attention_ops_map = self.get_layer_attention_ops()
         layer_ffn_ops_map = self.get_layer_ffn_ops()
+        layer_output_proj_ops_map = self.get_layer_output_proj_ops()
 
-        total_ops_map = {}
-        for key in ['decoding','prefill']:
-            total_ops_map[key] = self.inference_config.lm_config.num_hidden_layers *(
-                                    laeyr_qkv_proj_ops_map[key]+layer_attention_ops_map[key] + layer_ffn_ops_map[key]
-                                )
+        layer_mlp_ops_map = self.get_layer_mlp_ops()
 
-        return total_ops_map
+        model_ops={'model_prefill_ops':0,'model_decoding_ops':0,
+                   'model_decoding_mlp_ops':0,'model_decoding_attention_ops':0}
+        for info in [laeyr_qkv_proj_ops_map,layer_attention_ops_map,layer_ffn_ops_map,layer_output_proj_ops_map]:
+            for k,v in info.items():
+                if 'prefill' in k:
+                    model_ops['model_prefill_ops'] += v*self.inference_config.lm_config.num_hidden_layers
+                if 'decoding' in k :
+                    model_ops['model_decoding_ops'] += v*self.inference_config.lm_config.num_hidden_layers
+        
+        model_ops['model_decoding_mlp_ops'] = layer_mlp_ops_map['layer_decoding_mlp_ops'] * self.inference_config.lm_config.num_hidden_layers
+        model_ops['model_decoding_attention_ops'] = layer_attention_ops_map['layer_decoding_attention_ops'] * self.inference_config.lm_config.num_hidden_layers
+
+        return model_ops
 
 
     def get_layer_qkv_proj_ops(self)->dict[str,int]:
@@ -244,7 +295,7 @@ class ComputeCalc:
         
         qkv_proj_prefill_ops =  qkv_proj_decoding_ops * sequence_config.prefill_length
 
-        return  {'decoding':qkv_proj_decoding_ops,'prefill':qkv_proj_prefill_ops}
+        return  {'layer_decoding_qkv_projection_ops':qkv_proj_decoding_ops,'layer_prefill_qkv_projection_ops':qkv_proj_prefill_ops}
 
 
     def get_layer_attention_ops(self)->dict[str,int]:
@@ -256,21 +307,25 @@ class ComputeCalc:
         # MHA and GQA actually the same ops, GQA only brings memory usage gain 
         q_mul_k_prefill_ops = sequence_config.batch_size * (sequence_config.prefill_length * lm_config.per_head_size * sequence_config.prefill_length * lm_config.num_attention_heads)
         score_mul_v_prefill_ops = sequence_config.batch_size * (sequence_config.prefill_length * sequence_config.prefill_length * lm_config.per_head_size * lm_config.num_attention_heads)
-        o_proj_prefill_ops = sequence_config.batch_size * sequence_config.prefill_length * lm_config.hidden_size * lm_config.hidden_size
+        # o_proj_prefill_ops = sequence_config.batch_size * sequence_config.prefill_length * lm_config.hidden_size * lm_config.hidden_size
 
-        attention_prefill_ops = q_mul_k_prefill_ops + score_mul_v_prefill_ops + o_proj_prefill_ops 
+        attention_prefill_ops = q_mul_k_prefill_ops + score_mul_v_prefill_ops 
 
         # decoding 
         q_mul_k_decoding_ops = sequence_config.batch_size * (1 * lm_config.per_head_size * sequence_config.total_length * lm_config.num_attention_heads)
         score_mul_v_decoding_ops = sequence_config.batch_size * (1 * sequence_config.total_length * lm_config.per_head_size * lm_config.num_attention_heads)
+        # o_proj_decoding_ops = sequence_config.batch_size * 1 * lm_config.hidden_size * lm_config.hidden_size
+
+        attention_decoding_ops = q_mul_k_decoding_ops + score_mul_v_decoding_ops
+
+        return {'layer_decoding_attention_ops':attention_decoding_ops , 'layer_prefill_attention_ops':attention_prefill_ops}
+
+    def get_layer_output_proj_ops(self)->dict[str,int]:
+        lm_config,data_type_config,sequence_config  = self.inference_config.lm_config,self.inference_config.data_type_config,self.inference_config.sequence_config
+        o_proj_prefill_ops = sequence_config.batch_size * sequence_config.prefill_length * lm_config.hidden_size * lm_config.hidden_size
         o_proj_decoding_ops = sequence_config.batch_size * 1 * lm_config.hidden_size * lm_config.hidden_size
 
-        attention_decoding_ops = q_mul_k_decoding_ops + score_mul_v_decoding_ops + o_proj_decoding_ops
-
-        return {'decoding':attention_decoding_ops , 'prefill':attention_prefill_ops}
-
-
-
+        return {'layer_decoding_output_projection_ops':o_proj_decoding_ops,'layer_prefill_output_projection_ops':o_proj_prefill_ops}
 
     def get_layer_ffn_ops(self)->dict[str,int]:
         lm_config,data_type_config,sequence_config  = self.inference_config.lm_config,self.inference_config.data_type_config,self.inference_config.sequence_config
@@ -288,7 +343,28 @@ class ComputeCalc:
         else:
             assert False
 
-        return {'decoding':ffn_decoding_ops, 'prefill':ffn_prefill_ops}
+        return {'layer_decoding_ffn_ops':ffn_decoding_ops, 'layer_prefill_ffn_ops':ffn_prefill_ops}
+
+
+
+    def get_layer_mlp_ops(self)->dict[str,int]:
+        layer_qkv_projection_info = self.get_layer_qkv_proj_ops()
+        layer_ffn_info = self.get_layer_ffn_ops()
+        layer_output_projection_info  = self.get_layer_output_proj_ops()
+
+        layer_mlp_decoding_ops = layer_qkv_projection_info['layer_decoding_qkv_projection_ops'] + \
+                                    layer_ffn_info['layer_decoding_ffn_ops'] + \
+                                    layer_output_projection_info['layer_decoding_output_projection_ops']
+        
+        layer_mlp_prefill_ops = layer_qkv_projection_info['layer_prefill_qkv_projection_ops'] + \
+                                    layer_ffn_info['layer_prefill_ffn_ops'] + \
+                                    layer_output_projection_info['layer_prefill_output_projection_ops']
+        
+        return {
+            'layer_decoding_mlp_ops':layer_mlp_decoding_ops,
+            'layer_prefill_mlp_ops':layer_mlp_prefill_ops
+        }
+
 
 
 
